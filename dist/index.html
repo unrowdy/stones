@@ -1,0 +1,421 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Stones</title>
+<script type="module">
+
+/*
+地 earth
+火 fire
+水 water
+風 wind
+空 void
+*/
+
+const colors = ['red', 'green', 'black'];
+const symbols = ['地', '火', '水', '風'];
+const wild = '空';
+
+function draw(stone) {
+    let wren = document.createElement('div');
+    wren.classList.add('stone');
+    wren.classList.add(stone.foreground);
+    wren.classList.add(stone.background + '-bg');
+    wren.innerHTML = stone.symbol === 'any' ? wild : stone.symbol;
+    return wren;
+}
+
+function repeat(n, f, t = null) {
+    if(n > 0) {
+        t = t || n;
+        f(t - n);
+        repeat(n - 1, f, t);
+    }
+}
+
+function onboard(n) {
+    return n > -1 && n < 100;
+}
+
+function samerow(a, b) {
+    return Math.floor(a / 10) === Math.floor(b / 10);
+}
+
+function adjacent(n) {
+    let output = [];
+
+    let top = n - 10;
+    let right = n + 1;
+    let bottom = n + 10;
+    let left = n - 1;
+
+    if(onboard(top)) {
+        output.push(top);
+    }
+    if(samerow(right, n)) {
+        output.push(right);
+    }
+    if(onboard(bottom)) {
+        output.push(bottom);
+    }
+    if(samerow(left, n)) {
+        output.push(left);
+    }
+
+    return output;
+}
+
+function match(a, b) {
+    if(a === b || a === 'any' || b === 'any') {
+        return true;
+    }
+    return false;
+}
+
+function compare(a, b) {
+    if(!a || !b) {
+        return null;
+    }
+
+    let common = 0;
+    common += match(a.foreground, b.foreground) ? 1 : 0;
+    common += match(a.background, b.background) ? 1 : 0;
+    common += match(a.symbol, b.symbol) ? 1 : 0;
+
+    if(common >= 2) {
+        return true;
+    }
+    return false;
+}
+
+function shuffle(arr) {
+    let temp = arr.map(function(v, i) {
+        return {
+            index: i,
+            sort: Math.random()
+        };
+    });
+
+    temp.sort(function(a, b) {
+        return a.sort - b.sort;
+    });
+
+    let output = temp.map(function(v) {
+        return arr[v.index];
+    });
+
+    return output;
+}
+
+function cellcheck(i) {
+    let x = adjacent(i);
+    let res = x.map(function(v) {
+        return compare(current, cells[v].stone);
+    });
+    // at least one match, and no explicit mismatch
+    let connected = res.some(function(e) {
+        return e === true;
+    });
+    let unblocked = res.every(function(e) {
+        return e !== false;
+    });
+
+    if (connected && unblocked) {
+        return true;
+    }
+    return false;
+}
+
+// you could store adjacent in each cell
+// to avoid recalculating it each time
+
+function possible() {
+    for (let i = 0; i < cells.length; i += 1) {
+        if(!cells[i].stone) { // for each empty cell
+            // current is global
+            if(cellcheck(i)) {
+                return true; // return right away
+            }
+        }
+    }
+    alert('The next stone will not fit. Play again?');
+    startgame();
+    return false; // doesn't matter now since startgame
+}
+
+
+let stack = [];
+let cells = [];
+let dealerschoice = [];
+let current = null;
+
+function render() {
+    for(let cell of cells) {
+        if(cell.stone && !cell.rendered) {
+            let wren = draw(cell.stone);
+            cell.element.appendChild(wren);
+            cell.rendered = true;
+        }
+    }
+
+    // is there a better way to clear?
+    document.querySelector('.cursor').innerHTML = '';
+    document.querySelector('.dispenser').innerHTML = '';
+    // also you don't need to clear dispenser, just remove one and add one
+
+    // show 5 tiles, or how ever many are left
+    repeat(Math.min(5, stack.length), function(i) {
+        let next = draw(stack.slice(-1 - i)[0]);
+        document.querySelector('.dispenser').appendChild(next);
+    });
+
+    if(current) { // unless you are done
+        let act = draw(current);
+        document.querySelector('.cursor').appendChild(act);
+        possible();
+    }
+}
+
+function startgame() {
+    stack = [];
+    cells = [];
+    dealerschoice = [];
+    current = null;
+
+    // probably should not regenerate all this dom each restart
+    // which requires extra workaround steps like this
+    let tempcursor = document.querySelector('.cursor');
+    document.querySelector('.board').innerHTML = '';
+    document.querySelector('.board').appendChild(tempcursor);
+
+    document.querySelector('.progress').innerHTML = '';
+
+    for (let background of colors) {
+        for (let foreground of colors) {
+            if(foreground !== background) {
+                for (let symbol of symbols) {
+                    repeat(3, function() {
+                        stack.push({
+                            foreground,
+                            background,
+                            symbol
+                        })
+                    });
+                }
+            }
+        }
+    }
+
+    // you could maybe change 'any' to null
+    // maybe a dangerous default but might make comparisons easier
+    repeat(12, function() {
+        stack.push({
+            foreground: 'any',
+            background: 'any',
+            symbol: 'any'
+        });
+    });
+
+    stack = shuffle(stack);
+
+    // initialize progress
+    // start with 72 (5w x 14h + 2) deplete top to bottom, right to left
+    // so it does not include the 5 in the dispenser, or current
+    // probably a better way than hardcoding it
+    repeat(72, function() {
+        let div = document.createElement('div');
+        document.querySelector('.progress').appendChild(div);
+    });
+
+    repeat(100, function(i) {
+        let div = document.createElement('div');
+        div.addEventListener('click', function() {
+            if(current && !cells[i].stone) {
+                if(cellcheck(i)) {
+                    cells[i].stone = current;
+
+                    // update progress
+                    let prog = document.querySelector('.progress').firstChild;
+                    if (prog) {
+                        document.querySelector('.progress').removeChild(prog);
+                    }
+
+                    if (stack.length > 0) {
+                        current = stack.pop(); // make this a function, that also updates dispenser
+                        render();
+                    } else {
+                        current = null;
+                        render(); // so it snaps into place
+                        alert('All stones have been placed. Play again?');
+                        startgame();
+                        return; // necessary?
+                        // should show cursor again
+                    }
+                    //render();
+                }
+            }
+            /*else {
+                // could you completely remove the event listener when placing a stone?
+                // or not cause there will be more games played
+                console.log('blocked');
+                // decrease points
+            }*/
+        });
+        document.querySelector('.board').appendChild(div);
+        cells.push({
+            element: div,
+            stone: null,
+            rendered: false
+        });
+        // setup choices for initial deal, avoid outside edges
+        if( i > 9 && i < 90 && i % 10 !== 0 && i % 10 !== 9) {
+            dealerschoice.push(i);
+        }
+    });
+
+    // randomly place 6 tiles
+    // also avoid directly adjacent
+    repeat(6, function() {
+        let choice = Math.floor(Math.random() * dealerschoice.length);
+        let item = dealerschoice.splice(choice, 1)[0];
+
+        let x = adjacent(item);
+        for (let a of x) {
+            let j = dealerschoice.indexOf(a);
+            if(j > -1) {
+                dealerschoice.splice(j, 1);
+            }
+        }
+
+        cells[item].stone = stack.pop();
+    });
+
+    current = stack.pop();
+    render();
+
+}
+
+document.querySelector('.board').addEventListener('mousemove', function(e) {
+    // dunno if these are the best properties
+    document.querySelector('.cursor').style.top = e.pageY - e.currentTarget.offsetTop - 28 + 'px';
+    document.querySelector('.cursor').style.left = e.pageX - e.currentTarget.offsetLeft - 28 + 'px';
+});
+
+startgame();
+
+// bugs me a little that cursor position stays at last tile played, when starting new game
+// you click ok on the alert, and then when you move the mouse the tile jumps to it
+// maybe just default it back to -28, -28 when starting game?
+// maybe it doesn't matter
+
+//document.querySelector('.restart').addEventListener('click', startgame);
+
+</script>
+<style>
+body {
+    margin: 32px;
+}
+.container {
+    display: grid;
+    grid-template-columns: auto auto;
+    grid-template-rows: 10fr 7fr; /* no auto cause it changes as progress gets smaller */
+    grid-gap: 32px;
+    width: fit-content;
+    margin: 0 auto;
+}
+.board {
+    display: grid;
+    grid-template-columns: repeat(10, 1fr);
+    grid-row: span 2;
+    width: fit-content;
+    border: 1px solid #ddd;
+    background: #eee;
+    cursor: none;
+    position: relative;
+    overflow: hidden;
+}
+.board > div {
+    width: 56px;
+    height: 56px;
+    border: 1px solid #ddd;
+}
+.stone {
+    width: 48px;
+    height: 44px;
+    display: grid;
+    place-items:center;
+    font: bold 24pt sans-serif;
+    border-radius: 8px;
+    padding-bottom: 4px;
+    border-width: 4px;
+    border-style: solid;
+}
+.dispenser {
+    width: 60px;
+    display: flex;
+    flex-direction: column-reverse;
+    align-items: center;
+    background: #eee;
+    padding: 2px;
+    border: 2px solid #ddd;
+}
+.dispenser div {
+    margin: 0 2px 2px;
+    cursor: default;
+}
+.board > .cursor { /* for specificity removing border */
+    position: absolute;
+    top: -28px;
+    left: -28px;
+    pointer-events: none;
+    border: none;
+}
+.progress {
+    width: 60px;
+    display: flex;
+    flex-wrap: wrap-reverse;
+    align-content: flex-start;
+    background: #eee;
+    padding: 2px;
+    border: 2px solid #ddd;
+}
+.progress div {
+    width: 8px;
+    height: 8px;
+    margin: 2px;
+    background: #ccc;
+    border-radius: 2px;
+}
+
+/* more colors (6, 10, 50%, 50% I think) */
+.red { color:   #8c312f; }
+.green { color: #58cc7f; }
+.black { color: #262626; }
+.any { color:   #356ba1; }
+.red-bg { background:   #b4413e; }
+.green-bg { background: #47ae6a; }
+.black-bg { background: #0f0f0f; }
+.any-bg { background:   #f0cf6b; }
+
+/*
+could make fore and back same shades
+potentially more accessible, and more uniform looking
+potential to use less levels then
+original reason was it is actually easier to play when they are not the same
+although they are as close as reasonably possible right now
+*/
+
+</style>
+</head>
+<body>
+<div class="container">
+    <div class="board">
+        <div class="cursor"></div>
+    </div>
+    <div class="dispenser"></div>
+    <div class="progress"></div>
+</div>
+<!--<button class="restart">New Game</button>-->
+</body>
+</html>
