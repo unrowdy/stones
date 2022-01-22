@@ -313,6 +313,9 @@ startgame();
 
 </script>
 <style>
+html, body {
+    background: #e8e8e8;
+}
 body {
     margin: 32px;
 }
@@ -329,8 +332,8 @@ body {
     grid-template-columns: repeat(10, 1fr);
     grid-row: span 2;
     width: fit-content;
-    border: 1px solid #ddd;
-    background: #eee;
+    border: 1px solid #bebebe;
+    background: #d3d3d3;
     cursor: none;
     position: relative;
     overflow: hidden;
@@ -338,7 +341,7 @@ body {
 .board > div {
     width: 56px;
     height: 56px;
-    border: 1px solid #ddd;
+    border: 1px solid #bebebe;
 }
 .stone {
     width: 48px;
@@ -356,9 +359,9 @@ body {
     display: flex;
     flex-direction: column-reverse;
     align-items: center;
-    background: #eee;
+    background: #d3d3d3;
     padding: 2px;
-    border: 2px solid #ddd;
+    border: 2px solid #bebebe;
 }
 .dispenser div {
     margin: 0 2px 2px;
@@ -376,15 +379,15 @@ body {
     display: flex;
     flex-wrap: wrap-reverse;
     align-content: flex-start;
-    background: #eee;
+    background: #d3d3d3;
     padding: 2px;
-    border: 2px solid #ddd;
+    border: 2px solid #bebebe;
 }
 .progress div {
     width: 8px;
     height: 8px;
     margin: 2px;
-    background: #ccc;
+    background: #a3a3a3;
     border-radius: 2px;
 }
 
